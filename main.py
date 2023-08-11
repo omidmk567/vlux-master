@@ -151,6 +151,7 @@ async def ws(websocket: WebSocket, session: Annotated[str | None, Cookie()] = No
                 await refresh_single_user(db, updated_user)
 
             elif command_type == "error":
+                logger.error(f"Error occurred on connection {websocket}. {command}")
                 # Todo: handle errors
                 pass
     except WebSocketDisconnect:
