@@ -15,15 +15,27 @@ class ConnectionManager:
     async def send_personal_message(self, command: dict, websocket: WebSocket):
         await websocket.send_json(command)
 
-    async def send_all_users(self, users: list, websocket: WebSocket):
-        command = {
-            "users": users
-        }
-        await self.send_personal_message(command, websocket)
-
     async def broadcast(self, command: dict):
         for connection in self.active_connections:
             await self.send_personal_message(command, connection)
+
+    async def send_personal_error(self, error: str, websocket: WebSocket):
+        command = {
+            "type": "error",
+            "data": {
+                "description": error
+            }
+        }
+        await self.send_personal_message(command, websocket)
+
+    async def send_personal_all_users(self, users: list, websocket: WebSocket):
+        command = {
+            "type": "fetch-users",
+            "data": {
+                "users": users
+            }
+        }
+        await self.send_personal_message(command, websocket)
 
     async def broadcast_disable_user(self, username: str):
         command = {

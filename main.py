@@ -125,27 +125,8 @@ async def delete_single_user(user_id: int, db: Session = Depends(get_db),
     logger.debug(f"User {db_user.username} deleted.")
 
 
-@app.websocket("/ws/users/")
+@app.websocket("/ws/")
 async def ws(websocket: WebSocket, token: Annotated[str | None, Cookie()] = None, db: Session = Depends(get_db)):
-    if token not in conf.slave_tokens:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
-    await ws_manager.connect(websocket)
-    try:
-        while True:
-            command = json.loads(await websocket.receive_text())
-            logger.info(f"got message {command} from {websocket}")
-            db_users = crud.get_all_users(db)
-            db_users_info = []
-            for user in db_users:
-                db_users_info.append({"username": user.username, "password": user.password})
-            await ws_manager.send_all_users(db_users_info, websocket)
-
-    except WebSocketDisconnect:
-        ws_manager.disconnect(websocket)
-
-
-@app.websocket("/ws/add-traffic/")
-async def add_traffic(websocket: WebSocket, token: Annotated[str | None, Cookie()] = None, db: Session = Depends(get_db)):
     if token not in conf.slave_tokens:
         logger.warning(f"Unauthorized websocket connection. {websocket}")
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
@@ -154,17 +135,44 @@ async def add_traffic(websocket: WebSocket, token: Annotated[str | None, Cookie(
     try:
         while True:
             command = json.loads(await websocket.receive_text())
-            username = command["username"]
-            size = command["size"]
-            db_user = crud.get_user_by_username(db, username=username)
-            if db_user is None:
-                await ws_manager.send_personal_message({"type": "info", "data": "Wrong user_id/admin"}, websocket)
-            crud.update_user_partially(db, username, {"used_traffic": db_user.used_traffic + size})
-            await refresh_single_user(db, db_user)
+            logger.info(f"got message {command} from {websocket}")
+            command_type = command["type"]
 
+            if command_type == "fetch-users":
+                users = process_fetch_users(db)
+                await ws_manager.send_personal_all_users(users, websocket)
+
+            elif command_type == "add-traffic":
+                command_data = command["data"]
+                updated_user = process_add_traffic(db, command_data)
+                if updated_user is None:
+                    await ws_manager.send_personal_message({"type": "info", "data": "Wrong user_id/admin"}, websocket)
+                    return
+                await refresh_single_user(db, updated_user)
+
+            elif command_type == "error":
+                # Todo: handle errors
+                pass
     except WebSocketDisconnect:
         logger.info(f"Websocket connection disconnected. {websocket}")
         ws_manager.disconnect(websocket)
+
+
+def process_fetch_users(db: Session):
+    db_users = crud.get_all_users(db)
+    db_users_info = []
+    for user in db_users:
+        db_users_info.append({"username": user.username, "password": user.password})
+    return db_users_info
+
+
+def process_add_traffic(db: Session, data: dict):
+    username = data["username"]
+    size = data["size"]
+    db_user = crud.get_user_by_username(db, username=username)
+    if db_user is None:
+        return None
+    return crud.update_user_partially(db, username, {"used_traffic": db_user.used_traffic + size})
 
 
 async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool = True):
