@@ -126,8 +126,8 @@ async def delete_single_user(user_id: int, db: Session = Depends(get_db),
 
 
 @app.websocket("/ws/")
-async def ws(websocket: WebSocket, token: Annotated[str | None, Cookie()] = None, db: Session = Depends(get_db)):
-    if token not in conf.slave_tokens:
+async def ws(websocket: WebSocket, session: Annotated[str | None, Cookie()] = None, db: Session = Depends(get_db)):
+    if session not in conf.slave_tokens:
         logger.warning(f"Unauthorized websocket connection. {websocket}")
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
     await ws_manager.connect(websocket)
