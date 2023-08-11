@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 models.Base.metadata.create_all(bind=engine)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-manager = ConnectionManager()
+ws_manager = ConnectionManager()
 app = FastAPI()
 
 
@@ -69,8 +69,17 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db),
     db_user = crud.get_user_by_username(db, username=user.username, admin_user_id=admin_user.id)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
-    logger.debug(f"User {db_user.username} created. {db_user}")
-    return crud.create_user(db, user, admin_user_id=admin_user.id)
+    created_user = crud.create_user(db, user, admin_user_id=admin_user.id)
+    logger.debug(f"User {db_user.username} created. {created_user}")
+    await ws_manager.broadcast_add_user(created_user.username, created_user.password)
+    return created_user
+
+
+@app.get("/users/count/", response_model=list[schemas.User])
+async def get_all_users(is_active: bool | None = None, db: Session = Depends(get_db),
+                        admin_user: models.Admin = Depends(get_admin)):
+    users = crud.get_users_count(db, admin_user_id=admin_user.id, is_active=is_active)
+    return users
 
 
 @app.get("/users/{user_id}", response_model=schemas.User)
@@ -90,22 +99,19 @@ async def get_all_users(skip: int = 0, limit: int = 100, is_active: bool | None 
     return users
 
 
-@app.get("/users/count/", response_model=list[schemas.User])
-async def get_all_users(is_active: bool | None = None, db: Session = Depends(get_db),
-                        admin_user: models.Admin = Depends(get_admin)):
-    users = crud.get_users_count(db, admin_user_id=admin_user.id, is_active=is_active)
-    return users
-
-
 @app.put("/users/{user_id}", response_model=schemas.User)
 async def update_single_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db),
                              admin_user: models.Admin = Depends(get_admin)):
     db_user = crud.get_user(db, user_id, admin_user_id=admin_user.id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    db_user = crud.update_user(db, user_id, user=user, admin_user_id=admin_user.id)
-    logger.debug(f"User {db_user.username} updated. {db_user}")
-    return db_user
+    is_active = db_user.is_active
+    updated_user = crud.update_user(db, user_id, user=user, admin_user_id=admin_user.id)
+    if not is_active and updated_user.is_active:
+        logger.debug(f"User {updated_user.username} enabled.")
+        await ws_manager.broadcast_enable_user(updated_user.username)
+    logger.debug(f"User {updated_user.username} updated. {updated_user}")
+    return updated_user
 
 
 @app.delete("/users/{user_id}", response_model=None)
@@ -115,6 +121,7 @@ async def delete_single_user(user_id: int, db: Session = Depends(get_db),
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     crud.delete_user(db, user_id, admin_user_id=admin_user.id)
+    await ws_manager.broadcast_disable_user(db_user.username)
     logger.debug(f"User {db_user.username} deleted.")
 
 
@@ -122,7 +129,7 @@ async def delete_single_user(user_id: int, db: Session = Depends(get_db),
 async def ws(websocket: WebSocket, token: Annotated[str | None, Cookie()] = None, db: Session = Depends(get_db)):
     if token not in conf.slave_tokens:
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
-    await manager.connect(websocket)
+    await ws_manager.connect(websocket)
     try:
         while True:
             command = json.loads(await websocket.receive_text())
@@ -131,10 +138,10 @@ async def ws(websocket: WebSocket, token: Annotated[str | None, Cookie()] = None
             db_users_info = []
             for user in db_users:
                 db_users_info.append({"username": user.username, "password": user.password})
-            await manager.send_personal_message({"users": db_users_info}, websocket)
+            await ws_manager.send_all_users(db_users_info, websocket)
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        ws_manager.disconnect(websocket)
 
 
 @app.websocket("/ws/add-traffic/")
@@ -142,7 +149,7 @@ async def add_traffic(websocket: WebSocket, token: Annotated[str | None, Cookie(
     if token not in conf.slave_tokens:
         logger.warning(f"Unauthorized websocket connection. {websocket}")
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
-    await manager.connect(websocket)
+    await ws_manager.connect(websocket)
     logger.info(f"Websocket connection established. {websocket}")
     try:
         while True:
@@ -151,13 +158,13 @@ async def add_traffic(websocket: WebSocket, token: Annotated[str | None, Cookie(
             size = command["size"]
             db_user = crud.get_user_by_username(db, username=username)
             if db_user is None:
-                await manager.send_personal_message({"type": "info", "data": "Wrong user_id/admin"}, websocket)
+                await ws_manager.send_personal_message({"type": "info", "data": "Wrong user_id/admin"}, websocket)
             crud.update_user_partially(db, username, {"used_traffic": db_user.used_traffic + size})
             await refresh_single_user(db, db_user)
 
     except WebSocketDisconnect:
         logger.info(f"Websocket connection disconnected. {websocket}")
-        manager.disconnect(websocket)
+        ws_manager.disconnect(websocket)
 
 
 async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool = True):
@@ -165,10 +172,10 @@ async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool =
         crud.update_user_partially(db, user.id, {"is_active": False})
         logger.info(f"User {user.username} became disabled due to traffic exceed. max traffic: {user.max_traffic}")
         if broadcast:
-            await manager.broadcast_disable_user(user.username)
+            await ws_manager.broadcast_disable_user(user.username)
 
     if user.expire_at != datetime.fromtimestamp(0) and user.expire_at < datetime.now():
         crud.update_user_partially(db, user.id, {"is_active": False})
         logger.info(f"User {user.username} became disabled due to expiration date. expire_at: {user.expire_at}")
         if broadcast:
-            await manager.broadcast_disable_user(user.username)
+            await ws_manager.broadcast_disable_user(user.username)
