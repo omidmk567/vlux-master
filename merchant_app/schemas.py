@@ -35,6 +35,10 @@ class User(UserBase):
         orm_mode = True
 
 
+class UsersCount(BaseModel):
+    count: int
+
+
 class UserUpdate(UserBase):
     pass
 

@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Cookie, WebSocketException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+from fastapi.middleware.cors import CORSMiddleware
 
 from merchant_app import crud, models, schemas, security
 from merchant_app.database import SessionLocal, engine
@@ -14,18 +15,29 @@ from shared_dir import conf
 
 import logging
 
-
 logging.basicConfig(
     level=logging.INFO,
     filename='merchant.log',
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
+origins = [
+    "*",
+]
+
 logger = logging.getLogger(__name__)
 models.Base.metadata.create_all(bind=engine)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 ws_manager = ConnectionManager()
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def get_db():
@@ -68,18 +80,18 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db),
                       admin_user: models.Admin = Depends(get_admin)):
     db_user = crud.get_user_by_username(db, username=user.username, admin_user_id=admin_user.id)
     if db_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=400, detail=f"Username {db_user.username} already registered")
     created_user = crud.create_user(db, user, admin_user_id=admin_user.id)
     logger.debug(f"User {db_user.username} created. {created_user}")
     await ws_manager.broadcast_add_user(created_user.username, created_user.password)
     return created_user
 
 
-@app.get("/api/users/count/", response_model=list[schemas.User])
-async def get_all_users(is_active: bool | None = None, db: Session = Depends(get_db),
-                        admin_user: models.Admin = Depends(get_admin)):
-    users = crud.get_users_count(db, admin_user_id=admin_user.id, is_active=is_active)
-    return users
+@app.get("/api/users/count/", response_model=int)
+async def get_users_count(is_active: bool | None = None, db: Session = Depends(get_db),
+                          admin_user: models.Admin = Depends(get_admin)):
+    users_count = crud.get_users_count(db, admin_user_id=admin_user.id, is_active=is_active)
+    return users_count
 
 
 @app.get("/api/users/{user_id}/", response_model=schemas.User)
