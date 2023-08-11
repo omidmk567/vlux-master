@@ -1,4 +1,5 @@
 from fastapi import WebSocket
+from starlette.websockets import WebSocketState
 
 
 class ConnectionManager:
@@ -13,7 +14,10 @@ class ConnectionManager:
         self.active_connections.remove(websocket)
 
     async def send_personal_message(self, command: dict, websocket: WebSocket):
-        await websocket.send_json(command)
+        if websocket.client_state == WebSocketState.CONNECTED and websocket.application_state == WebSocketState.CONNECTED:
+            await websocket.send_json(command)
+        else:
+            print(websocket.client_state, websocket.application_state)
 
     async def broadcast(self, command: dict):
         for connection in self.active_connections:

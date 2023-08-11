@@ -82,7 +82,7 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db),
     if db_user:
         raise HTTPException(status_code=400, detail=f"Username {db_user.username} already registered")
     created_user = crud.create_user(db, user, admin_user_id=admin_user.id)
-    logger.debug(f"User {db_user.username} created. {created_user}")
+    logger.debug(f"User {created_user.username} created. {created_user}")
     await ws_manager.broadcast_add_user(created_user.username, created_user.password)
     return created_user
 
@@ -122,6 +122,9 @@ async def update_single_user(user_id: int, user: schemas.UserUpdate, db: Session
     if not is_active and updated_user.is_active:
         logger.debug(f"User {updated_user.username} enabled.")
         await ws_manager.broadcast_enable_user(updated_user.username)
+    if is_active and not updated_user.is_active:
+        logger.debug(f"User {updated_user.username} disabled.")
+        await ws_manager.broadcast_disable_user(updated_user.username)
     logger.debug(f"User {updated_user.username} updated. {updated_user}")
     return updated_user
 
@@ -133,7 +136,7 @@ async def delete_single_user(user_id: int, db: Session = Depends(get_db),
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     crud.delete_user(db, user_id, admin_user_id=admin_user.id)
-    await ws_manager.broadcast_disable_user(db_user.username)
+    await ws_manager.broadcast_delete_user(db_user.username)
     logger.debug(f"User {db_user.username} deleted.")
 
 
@@ -185,7 +188,7 @@ def process_add_traffic(db: Session, data: dict):
     db_user = crud.get_user_by_username(db, username=username)
     if db_user is None:
         return None
-    return crud.update_user_partially(db, username, {"used_traffic": db_user.used_traffic + size})
+    return crud.update_user_partially(db, db_user.id, {"used_traffic": db_user.used_traffic + size})
 
 
 async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool = True):
@@ -194,6 +197,7 @@ async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool =
         logger.info(f"User {user.username} became disabled due to traffic exceed. max traffic: {user.max_traffic}")
         if broadcast:
             await ws_manager.broadcast_disable_user(user.username)
+            return
 
     if user.expire_at != datetime.fromtimestamp(0) and user.expire_at < datetime.now():
         crud.update_user_partially(db, user.id, {"is_active": False})
