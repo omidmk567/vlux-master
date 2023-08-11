@@ -51,7 +51,7 @@ async def get_admin(db: Session = Depends(get_db), token: str = Depends(oauth2_s
     return user
 
 
-@app.post("/token/", response_model=schemas.Token)
+@app.post("/api/token/", response_model=schemas.Token)
 async def login(form: TokenRequest, db: Session = Depends(get_db)):
     admin_user = crud.get_single_admin_user(db, admin_username=form.username)
     if not admin_user:
@@ -63,7 +63,7 @@ async def login(form: TokenRequest, db: Session = Depends(get_db)):
     return {"access_token": security.create_access_token(admin_user.username), "token_type": "bearer"}
 
 
-@app.post("/users/", response_model=schemas.User)
+@app.post("/api/users/", response_model=schemas.User)
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db),
                       admin_user: models.Admin = Depends(get_admin)):
     db_user = crud.get_user_by_username(db, username=user.username, admin_user_id=admin_user.id)
@@ -75,14 +75,14 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db),
     return created_user
 
 
-@app.get("/users/count/", response_model=list[schemas.User])
+@app.get("/api/users/count/", response_model=list[schemas.User])
 async def get_all_users(is_active: bool | None = None, db: Session = Depends(get_db),
                         admin_user: models.Admin = Depends(get_admin)):
     users = crud.get_users_count(db, admin_user_id=admin_user.id, is_active=is_active)
     return users
 
 
-@app.get("/users/{user_id}", response_model=schemas.User)
+@app.get("/api/users/{user_id}/", response_model=schemas.User)
 async def get_single_user(user_id: int, db: Session = Depends(get_db), admin_user: models.Admin = Depends(get_admin)):
     db_user = crud.get_user(db, user_id=user_id, admin_user_id=admin_user.id)
     if db_user is None:
@@ -90,7 +90,7 @@ async def get_single_user(user_id: int, db: Session = Depends(get_db), admin_use
     return db_user
 
 
-@app.get("/users/", response_model=list[schemas.User])
+@app.get("/api/users/", response_model=list[schemas.User])
 async def get_all_users(skip: int = 0, limit: int = 100, is_active: bool | None = None, db: Session = Depends(get_db),
                         admin_user: models.Admin = Depends(get_admin)):
     users = crud.get_users(db, admin_user_id=admin_user.id, skip=skip, limit=limit, is_active=is_active)
@@ -99,7 +99,7 @@ async def get_all_users(skip: int = 0, limit: int = 100, is_active: bool | None 
     return users
 
 
-@app.put("/users/{user_id}", response_model=schemas.User)
+@app.put("/api/users/{user_id}/", response_model=schemas.User)
 async def update_single_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db),
                              admin_user: models.Admin = Depends(get_admin)):
     db_user = crud.get_user(db, user_id, admin_user_id=admin_user.id)
@@ -114,7 +114,7 @@ async def update_single_user(user_id: int, user: schemas.UserUpdate, db: Session
     return updated_user
 
 
-@app.delete("/users/{user_id}", response_model=None)
+@app.delete("/api/users/{user_id}/", response_model=None)
 async def delete_single_user(user_id: int, db: Session = Depends(get_db),
                              admin_user: models.Admin = Depends(get_admin)):
     db_user = crud.get_user(db, user_id, admin_user_id=admin_user.id)
