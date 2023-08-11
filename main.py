@@ -197,7 +197,7 @@ async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool =
         logger.info(f"User {user.username} became disabled due to traffic exceed. max traffic: {user.max_traffic}")
         if broadcast:
             await ws_manager.broadcast_disable_user(user.username)
-            return
+        return
 
     if user.expire_at != datetime.fromtimestamp(0) and user.expire_at < datetime.now():
         crud.update_user_partially(db, user.id, {"is_active": False})

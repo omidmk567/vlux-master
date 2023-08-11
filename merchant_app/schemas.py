@@ -2,7 +2,7 @@ import random
 import string
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserBase(BaseModel):
@@ -15,8 +15,8 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    username: str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=7))
-    password: str = ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.punctuation, k=10))
+    username: str = Field(default_factory=lambda: ''.join(random.choices(string.ascii_lowercase + string.digits, k=7)))
+    password: str = Field(default_factory=lambda: ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.punctuation, k=10)))
     is_active: bool = True
     max_traffic: int = 0
     expire_at: datetime = datetime.fromtimestamp(0)
