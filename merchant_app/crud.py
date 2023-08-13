@@ -1,11 +1,9 @@
-from datetime import datetime
-
 from sqlalchemy.orm import Session
 
 from . import models, schemas, security
 
 
-def create_user(db: Session, user: schemas.UserCreate, admin_user_id: int):
+def create_user(db: Session, user: schemas.UserCreate, admin_user_id: str):
     db_user = models.User(**user.dict(), creator_id=admin_user_id)
     db.add(db_user)
     db.commit()
@@ -35,21 +33,21 @@ def get_admin_users(db: Session):
     return db.query(models.Admin).all()
 
 
-def get_user(db: Session, user_id: int, admin_user_id: int | None = None):
+def get_user(db: Session, user_id: str, admin_user_id: str | None = None):
     if admin_user_id is None:
         return db.query(models.User).filter(models.User.id == user_id).first()
     return db.query(models.User).filter(models.User.id == user_id).filter(
         models.User.creator_id == admin_user_id).first()
 
 
-def get_user_by_username(db: Session, username: str, admin_user_id: int | None = None):
+def get_user_by_username(db: Session, username: str, admin_user_id: str | None = None):
     if admin_user_id is None:
         return db.query(models.User).filter(models.User.username == username).first()
     return db.query(models.User).filter(models.User.username == username).filter(
         models.User.creator_id == admin_user_id).first()
 
 
-def get_users(db: Session, admin_user_id: int, skip: int, limit: int, is_active: bool | None = None):
+def get_users(db: Session, admin_user_id: str, skip: int, limit: int, is_active: bool | None = None):
     if is_active is None:
         return db.query(models.User).filter(models.User.creator_id == admin_user_id).offset(skip).limit(limit).all()
 
@@ -61,7 +59,7 @@ def get_all_users(db: Session):
     return db.query(models.User).all()
 
 
-def get_users_count(db: Session, admin_user_id: int | None, is_active: bool | None = None):
+def get_users_count(db: Session, admin_user_id: str | None, is_active: bool | None = None):
     if admin_user_id is None:
         if is_active is None:
             return db.query(models.User).count()
@@ -72,7 +70,7 @@ def get_users_count(db: Session, admin_user_id: int | None, is_active: bool | No
         models.User.is_active == is_active).count()
 
 
-def update_user(db: Session, user_id: int, user: schemas.UserUpdate, admin_user_id: int):
+def update_user(db: Session, user_id: str, user: schemas.UserUpdate, admin_user_id: str):
     db_user = get_user(db, user_id, admin_user_id)
     for attr, value in user.dict().items():
         setattr(db_user, attr, value)
@@ -82,7 +80,7 @@ def update_user(db: Session, user_id: int, user: schemas.UserUpdate, admin_user_
     return db_user
 
 
-def update_user_partially(db: Session, user_id: int, update: dict, admin_user_id: int | None = None):
+def update_user_partially(db: Session, user_id: str, update: dict, admin_user_id: str | None = None):
     db_user = get_user(db, user_id, admin_user_id)
     for attr, value in update.items():
         setattr(db_user, attr, value)
@@ -92,6 +90,6 @@ def update_user_partially(db: Session, user_id: int, update: dict, admin_user_id
     return db_user
 
 
-def delete_user(db: Session, user_id: int, admin_user_id: int):
+def delete_user(db: Session, user_id: str, admin_user_id: str):
     db.query(models.User).filter(models.User.id == user_id).filter(models.User.creator_id == admin_user_id).delete()
     db.commit()

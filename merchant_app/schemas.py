@@ -26,8 +26,8 @@ class UserCreate(UserBase):
 
 
 class User(UserBase):
-    id: int
-    creator_id: int
+    id: str
+    creator_id: str
     used_traffic: int
     created_at: datetime
 
@@ -53,7 +53,7 @@ class AdminCreate(AdminBase):
 
 
 class Admin(AdminBase):
-    id: int
+    id: str
     created_at: datetime
     users: list[UserBase] = []
 

@@ -1,13 +1,19 @@
+import uuid
+
 from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Boolean
 from sqlalchemy.orm import relationship
 
 from .database import Base
 
 
+def generate_uuid():
+    return str(uuid.uuid4())
+
+
 class Admin(Base):
     __tablename__ = "admins"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True, default=generate_uuid)
     username = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     created_at = Column(DateTime)
@@ -18,7 +24,7 @@ class Admin(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True, default=generate_uuid)
     username = Column(String, unique=True, index=True)
     password = Column(String)
     is_active = Column(Boolean, default=True)
@@ -27,6 +33,6 @@ class User(Base):
     used_traffic = Column(Integer, default=0)
     expire_at = Column(DateTime)
     contact = Column(String)
-    creator_id = Column(Integer, ForeignKey("admins.id"))
+    creator_id = Column(String, ForeignKey("admins.id"))
 
     creator = relationship("Admin", back_populates="users")
