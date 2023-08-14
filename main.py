@@ -147,7 +147,7 @@ async def delete_single_user(user_id: str, db: Session = Depends(get_db),
     logger.debug(f"User {db_user.username} deleted.")
 
 
-@app.post("/ws/auth/")
+@app.post("/ws/auth/", response_model=schemas.Token)
 async def get_ws_token(request: Request):
     client_ip = request.client.host
     logger.info(f"Client ip {client_ip} has requested to connect")
