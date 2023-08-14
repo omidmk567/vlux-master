@@ -153,7 +153,7 @@ async def get_ws_token(request: Request):
     logger.info(f"Client ip {client_ip} has requested to connect")
     response = requests.get('https://api.runonflux.io/apps/location/vlux').json()
     data = response["data"]
-    token = conf.slave_token if client_ip in [x['ip'] for x in data] else ""
+    token = conf.slave_token if client_ip in [x['ip'].split(':')[0] for x in data] else ""
     return {"access_token": token, "token_type": "str"}
 
 
