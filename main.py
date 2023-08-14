@@ -2,8 +2,9 @@ import json
 import logging
 from datetime import datetime
 from typing import Annotated
+import requests
 
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Cookie, WebSocketException, status
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Cookie, WebSocketException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -146,9 +147,19 @@ async def delete_single_user(user_id: str, db: Session = Depends(get_db),
     logger.debug(f"User {db_user.username} deleted.")
 
 
+@app.post("/ws/auth/")
+async def get_ws_token(request: Request):
+    client_ip = request.client.host
+    logger.info(f"Client ip {client_ip} has requested to connect")
+    response = requests.get('https://api.runonflux.io/apps/location/vlux').json()
+    data = response["data"]
+    token = conf.slave_token if client_ip in [x['ip'] for x in data] else ""
+    return {"access_token": token, "token_type": "str"}
+
+
 @app.websocket("/ws/")
 async def ws(websocket: WebSocket, session: Annotated[str | None, Cookie()] = None, db: Session = Depends(get_db)):
-    if session not in conf.slave_tokens:
+    if session != conf.slave_token:
         logger.warning(f"Unauthorized websocket connection. {websocket}")
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
     await ws_manager.connect(websocket)
