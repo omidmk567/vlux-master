@@ -77,3 +77,13 @@ class ConnectionManager:
             }
         }
         await self.broadcast(command)
+
+    async def broadcast_change_password(self, username: str, new_password: str):
+        command = {
+            "type": "change-password",
+            "data": {
+                "username": username,
+                "new-password": new_password,
+            }
+        }
+        await self.broadcast(command)

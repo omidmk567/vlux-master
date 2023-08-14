@@ -1,20 +1,18 @@
 import json
+import logging
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Cookie, WebSocketException, status, \
-    Header
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Cookie, WebSocketException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from fastapi.middleware.cors import CORSMiddleware
 
 from merchant_app import crud, models, schemas, security
 from merchant_app.database import SessionLocal, engine
 from merchant_app.schemas import TokenRequest
 from merchant_app.ws.manager import ConnectionManager
 from shared_dir import conf
-
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -118,14 +116,21 @@ async def update_single_user(user_id: str, user: schemas.UserUpdate, db: Session
     db_user = crud.get_user(db, user_id, admin_user_id=admin_user.id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    is_active = db_user.is_active
+    old_is_active = db_user.is_active
+    old_password = db_user.password
     updated_user = crud.update_user(db, user_id, user=user, admin_user_id=admin_user.id)
-    if not is_active and updated_user.is_active:
-        logger.debug(f"User {updated_user.username} enabled.")
-        await ws_manager.broadcast_enable_user(updated_user.username)
-    if is_active and not updated_user.is_active:
-        logger.debug(f"User {updated_user.username} disabled.")
-        await ws_manager.broadcast_disable_user(updated_user.username)
+    # Check for is_active change
+    if old_is_active != updated_user.is_active:
+        if updated_user.is_active:
+            logger.debug(f"User {updated_user.username} enabled.")
+            await ws_manager.broadcast_enable_user(updated_user.username)
+        else:
+            logger.debug(f"User {updated_user.username} disabled.")
+            await ws_manager.broadcast_disable_user(updated_user.username)
+    # Check for password change
+    if old_password != updated_user.password:
+        logger.debug(f"Password of user {updated_user.username} changed to {updated_user.password}.")
+        await ws_manager.broadcast_change_password(updated_user.username, updated_user.password)
     logger.debug(f"User {updated_user.username} updated. {updated_user}")
     return updated_user
 
