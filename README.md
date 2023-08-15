@@ -1,4 +1,4 @@
-Merchant of VLUX
+Master node of VLUX
 ================
 
 to run server:
