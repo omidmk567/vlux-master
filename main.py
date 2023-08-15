@@ -9,15 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from merchant_app import crud, models, schemas, security
-from merchant_app.database import SessionLocal, engine
-from merchant_app.schemas import TokenRequest
-from merchant_app.ws.manager import ConnectionManager
+from master_app import crud, models, schemas, security
+from master_app.database import SessionLocal, engine
+from master_app.schemas import TokenRequest
+from master_app.ws.manager import ConnectionManager
 from shared_dir import conf
 
 logging.basicConfig(
     level=logging.INFO,
-    filename='merchant.log',
+    filename='master.log',
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
