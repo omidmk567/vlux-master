@@ -16,7 +16,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     username: str = Field(default_factory=lambda: ''.join(random.choices(string.ascii_lowercase + string.digits, k=7)))
-    password: str = Field(default_factory=lambda: ''.join(random.choices(string.ascii_lowercase + string.ascii_uppercase + string.punctuation, k=8)))
+    password: str = Field(default_factory=lambda: ''.join(random.choices(string.ascii_letters + string.digits, k=8)))
     is_active: bool = True
     max_traffic: int = 0
     expire_at: datetime = datetime.fromtimestamp(0)
