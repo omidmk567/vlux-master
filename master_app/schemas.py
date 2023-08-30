@@ -21,14 +21,16 @@ class UserCreate(UserBase):
     max_traffic: int = 0
     expire_at: datetime = datetime.fromtimestamp(0)
     contact: str = ""
-    used_traffic: int = 0
+    download: int = 0
+    upload: int = 0
     created_at: datetime = datetime.now()
 
 
 class User(UserBase):
     id: str
     creator_id: str
-    used_traffic: int
+    download: int
+    upload: int
     created_at: datetime
 
     class Config:

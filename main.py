@@ -2,8 +2,8 @@ import json
 import logging
 from datetime import datetime
 from typing import Annotated
-import requests
 
+import requests
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Cookie, WebSocketException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
@@ -201,15 +201,19 @@ def process_fetch_users(db: Session):
 
 def process_add_traffic(db: Session, data: dict):
     username = data["username"]
-    size = data["size"]
+    download = data["download"]
+    upload = data["upload"]
     db_user = crud.get_user_by_username(db, username=username)
     if db_user is None:
         return None
-    return crud.update_user_partially(db, db_user.id, {"used_traffic": db_user.used_traffic + size})
+    return crud.update_user_partially(db, db_user.id, {
+        "download": db_user.download + download,
+        "upload": db_user.upload + upload
+    })
 
 
 async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool = True):
-    if user.max_traffic != 0 and user.used_traffic > user.max_traffic:
+    if user.max_traffic != 0 and (user.download + user.upload) >= user.max_traffic:
         crud.update_user_partially(db, user.id, {"is_active": False})
         logger.info(f"User {user.username} became disabled due to traffic exceed. max traffic: {user.max_traffic}")
         if broadcast:
