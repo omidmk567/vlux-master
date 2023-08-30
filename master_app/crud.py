@@ -55,8 +55,10 @@ def get_users(db: Session, admin_user_id: str, skip: int, limit: int, is_active:
         models.User.is_active == is_active).offset(skip).limit(limit).all()
 
 
-def get_all_users(db: Session):
-    return db.query(models.User).all()
+def get_all_users(db: Session, is_active: bool | None = None):
+    if is_active is None:
+        return db.query(models.User).all()
+    return db.query(models.User).filter(models.User.is_active == is_active).all()
 
 
 def get_users_count(db: Session, admin_user_id: str | None, is_active: bool | None = None):
