@@ -47,12 +47,13 @@ def get_user_by_username(db: Session, username: str, admin_user_id: str | None =
         models.User.creator_id == admin_user_id).first()
 
 
-def get_users(db: Session, admin_user_id: str, skip: int, limit: int, is_active: bool | None = None):
-    if is_active is None:
-        return db.query(models.User).filter(models.User.creator_id == admin_user_id).offset(skip).limit(limit).all()
-
-    return db.query(models.User).filter(models.User.creator_id == admin_user_id).filter(
-        models.User.is_active == is_active).offset(skip).limit(limit).all()
+def get_users(db: Session, admin_user_id: str, skip: int, limit: int, is_active: bool | None = None, q: str | None = None):
+    query = db.query(models.User).filter(models.User.creator_id == admin_user_id)
+    if is_active is not None:
+        query = query.filter(models.User.is_active == is_active)
+    if q is not None:
+        query = query.filter(models.User.username.contains(q))
+    return query.offset(skip).limit(limit).all()
 
 
 def get_all_users(db: Session, is_active: bool | None = None):

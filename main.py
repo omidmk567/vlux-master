@@ -103,9 +103,9 @@ async def get_single_user(user_id: str, db: Session = Depends(get_db), admin_use
 
 
 @app.get("/api/users/", response_model=list[schemas.User])
-async def get_all_users(skip: int = 0, limit: int = 100, is_active: bool | None = None, db: Session = Depends(get_db),
-                        admin_user: models.Admin = Depends(get_admin)):
-    users = crud.get_users(db, admin_user_id=admin_user.id, skip=skip, limit=limit, is_active=is_active)
+async def get_all_users(skip: int = 0, limit: int = 100, is_active: bool | None = None, q: str | None = None,
+                        db: Session = Depends(get_db), admin_user: models.Admin = Depends(get_admin)):
+    users = crud.get_users(db, admin_user_id=admin_user.id, skip=skip, limit=limit, is_active=is_active, q=q)
     for user in users:
         await refresh_single_user(db, user)
     return users
