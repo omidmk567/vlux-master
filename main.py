@@ -176,11 +176,12 @@ async def ws(websocket: WebSocket, session: Annotated[str | None, Cookie()] = No
 
             elif command_type == "add-traffic":
                 command_data = command["data"]
-                updated_user = process_add_traffic(db, command_data)
-                if updated_user is None:
-                    await ws_manager.send_personal_message({"type": "info", "data": "Wrong user_id/admin"}, websocket)
-                    return
-                await refresh_single_user(db, updated_user)
+                for cm in command_data:
+                    updated_user = process_add_traffic(db, cm)
+                    if updated_user is None:
+                        logger.warning(f"Adding traffic to not existing user. {cm}")
+                        return
+                    await refresh_single_user(db, updated_user)
 
             elif command_type == "error":
                 logger.error(f"Error occurred on connection {websocket}. {command}")
