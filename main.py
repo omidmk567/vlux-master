@@ -214,15 +214,17 @@ def process_add_traffic(db: Session, data: dict):
 
 
 async def refresh_single_user(db: Session, user: schemas.User, broadcast: bool = True):
-    if user.max_traffic != 0 and (user.download + user.upload) >= user.max_traffic:
-        crud.update_user_partially(db, user.id, {"is_active": False})
-        logger.info(f"User {user.username} became disabled due to traffic exceed. max traffic: {user.max_traffic}")
-        if broadcast:
-            await ws_manager.broadcast_disable_user(user.username)
-        return
+    was_active = user.is_active
+    if was_active:
+        if user.max_traffic != 0 and (user.download + user.upload) >= user.max_traffic:
+            crud.update_user_partially(db, user.id, {"is_active": False})
+            logger.info(f"User {user.username} became disabled due to traffic exceed. max traffic: {user.max_traffic}")
+            if broadcast:
+                await ws_manager.broadcast_disable_user(user.username)
+            return
 
-    if user.expire_at != datetime.fromtimestamp(0) and user.expire_at < datetime.now():
-        crud.update_user_partially(db, user.id, {"is_active": False})
-        logger.info(f"User {user.username} became disabled due to expiration date. expire_at: {user.expire_at}")
-        if broadcast:
-            await ws_manager.broadcast_disable_user(user.username)
+        if user.expire_at != datetime.fromtimestamp(0) and user.expire_at < datetime.now():
+            crud.update_user_partially(db, user.id, {"is_active": False})
+            logger.info(f"User {user.username} became disabled due to expiration date. expire_at: {user.expire_at}")
+            if broadcast:
+                await ws_manager.broadcast_disable_user(user.username)
