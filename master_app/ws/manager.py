@@ -14,10 +14,14 @@ class ConnectionManager:
         self.active_connections.remove(websocket)
 
     async def send_personal_message(self, command: dict, websocket: WebSocket):
-        if websocket.client_state == WebSocketState.CONNECTED and websocket.application_state == WebSocketState.CONNECTED:
-            await websocket.send_json(command)
-        else:
-            print(websocket.client_state, websocket.application_state)
+        try:
+            if websocket.client_state == WebSocketState.CONNECTED and websocket.application_state == WebSocketState.CONNECTED:
+                await websocket.send_json(command)
+            else:
+                print(websocket.client_state, websocket.application_state)
+        except RuntimeError as err:
+            print(f"Could not send message to client {websocket.client.host}. {err}")
+
 
     async def broadcast(self, command: dict):
         for connection in self.active_connections:
