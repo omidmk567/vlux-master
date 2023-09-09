@@ -180,7 +180,7 @@ async def ws(websocket: WebSocket, session: Annotated[str | None, Cookie()] = No
                     updated_user = process_add_traffic(db, cm)
                     if updated_user is None:
                         logger.warning(f"Adding traffic to not existing user. {cm}")
-                        return
+                        continue
                     await refresh_single_user(db, updated_user)
 
             elif command_type == "error":
