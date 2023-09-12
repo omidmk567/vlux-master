@@ -58,7 +58,7 @@ async def get_admin(db: Session = Depends(get_db), token: str = Depends(oauth2_s
         raise HTTPException(status_code=401, detail="Unauthorized")
     username = security.decode_access_token(token)
     if username is None:
-        raise HTTPException(status_code=400, detail="Invalid Access Token")
+        raise HTTPException(status_code=401, detail="Invalid Access Token")
     user = crud.get_single_admin_user(db, username)
     return user
 
