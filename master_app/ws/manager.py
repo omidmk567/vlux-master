@@ -22,7 +22,6 @@ class ConnectionManager:
         except RuntimeError as err:
             print(f"Could not send message to client {websocket.client.host}. {err}")
 
-
     async def broadcast(self, command: dict):
         for connection in self.active_connections:
             await self.send_personal_message(command, connection)
@@ -63,12 +62,13 @@ class ConnectionManager:
         }
         await self.broadcast(command)
 
-    async def broadcast_add_user(self, username: str, password: str):
+    async def broadcast_add_user(self, username: str, password: str, is_active: bool):
         command = {
             "type": "add-user",
             "data": {
                 "username": username,
                 "password": password,
+                "enabled": is_active
             }
         }
         await self.broadcast(command)

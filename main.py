@@ -83,7 +83,7 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db),
         raise HTTPException(status_code=400, detail=f"Username {db_user.username} already registered")
     created_user = crud.create_user(db, user, admin_user_id=admin_user.id)
     logger.debug(f"User {created_user.username} created. {created_user}")
-    await ws_manager.broadcast_add_user(created_user.username, created_user.password)
+    await ws_manager.broadcast_add_user(created_user.username, created_user.password, created_user.is_active)
     return created_user
 
 
@@ -196,7 +196,7 @@ def process_fetch_users(db: Session):
     db_users = crud.get_all_users(db, is_active=True)
     db_users_info = []
     for user in db_users:
-        db_users_info.append({"username": user.username, "password": user.password})
+        db_users_info.append({"username": user.username, "password": user.password, "enabled": user.is_active})
     return db_users_info
 
 
