@@ -193,7 +193,7 @@ async def ws(websocket: WebSocket, session: Annotated[str | None, Cookie()] = No
 
 
 def process_fetch_users(db: Session):
-    db_users = crud.get_all_users(db, is_active=True)
+    db_users = crud.get_all_users(db)
     db_users_info = []
     for user in db_users:
         db_users_info.append({"username": user.username, "password": user.password, "enabled": user.is_active})
